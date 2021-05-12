@@ -6,14 +6,16 @@ import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
 import { useRouter } from 'next/router';
 
 import { getPrismicClient } from '../../services/prismic';
-import { formatDate } from '../../utils/formatDate';
+import { formatDate, formatDateHour } from '../../utils/formatDate';
 import Header from '../../components/Header';
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
+import Comments from '../../components/Comments';
 
 interface Post {
   first_publication_date: string | null;
+  last_publication_date: string | null;
   data: {
     title: string;
     banner: {
@@ -61,7 +63,7 @@ export default function Post({ post }: PostProps) {
   return (
     <>
       <Head>
-        <title>{post.data.title} | Ignews</title>
+        <title>{post.data.title} | spacetreveling</title>
       </Head>
 
       <Header />
@@ -74,11 +76,18 @@ export default function Post({ post }: PostProps) {
           <div className={styles.postInfo}>
             <time>
               <FiCalendar size={16} />
-              {formatDate(post.first_publication_date)}
+              {post.first_publication_date}
             </time>
             <span><FiUser size={16} />{post.data.author}</span>
             <span><FiClock size={16} />{getReadingTime()} min</span>
           </div>
+          {!!post.last_publication_date && (
+            <div
+              className={styles.last_publication_date}
+            >
+              <time>* editado em {post.last_publication_date}</time>
+            </div>
+          )}
 
           {post.data.content.map((content, index) => (
             <section key={index}>
@@ -89,6 +98,7 @@ export default function Post({ post }: PostProps) {
             </section>
           ))}
         </article>
+        <Comments />
       </main>
     </>
   );
@@ -110,10 +120,9 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
+  console.log(params)
   const { slug } = params;
-
   const prismic = getPrismicClient();
-
   const response = await prismic.getByUID('posts', String(slug), {});
 
   const content = response.data.content.map(content => ({
@@ -122,7 +131,8 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
   }));
 
   const post = {
-    first_publication_date: response.first_publication_date,
+    first_publication_date: formatDate(response.first_publication_date),
+    last_publication_date: formatDateHour(response.last_publication_date),
     uid: response.uid,
     data: {
       title: response.data.title,

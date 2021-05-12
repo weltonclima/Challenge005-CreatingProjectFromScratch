@@ -14,7 +14,7 @@
 
   div.postInfo {
     width: 100%;
-    margin: 0 auto 4rem;
+    margin: 0 auto 1rem;
     display: flex;
     justify-content: flex-start;
     gap: 1.5rem;
@@ -26,6 +26,11 @@
       gap: 0.5rem;
       color: var(--gray-400);
     }
+  }
+
+  .last_publication_date{
+    color: var(--gray-400);
+    margin: 0 auto 4rem;
   }
 
   section {

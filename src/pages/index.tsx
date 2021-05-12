@@ -29,25 +29,26 @@ interface PostPagination {
 
 interface HomeProps {
   postsPagination: PostPagination;
+  preview: boolean;
 }
 
-export default function Home({ postsPagination }: HomeProps) {
+export default function Home({ postsPagination, preview }: HomeProps) {
   const [posts, setPosts] = useState<Post[]>(postsPagination.results)
   const [nextPageUrl, setNextPageUrl] = useState(postsPagination.next_page);
 
   async function handleLoadMorePosts() {
     fetch(postsPagination.next_page)
-    .then(response => response.json())
-    .then(data => {
-      const newPosts = data.results.map(post => ({
-        uid: post.uid,
-        first_publication_date: formatDate(post.first_publication_date),
-        data: post.data,
-      }));
+      .then(response => response.json())
+      .then(data => {
+        const newPosts = data.results.map(post => ({
+          uid: post.uid,
+          first_publication_date: formatDate(post.first_publication_date),
+          data: post.data,
+        }));
 
-      setPosts([...posts, ...newPosts]);
-      setNextPageUrl(data.next_page);
-    });
+        setPosts([...posts, ...newPosts]);
+        setNextPageUrl(data.next_page);
+      });
   }
 
   return (
@@ -59,13 +60,20 @@ export default function Home({ postsPagination }: HomeProps) {
       <Header />
 
       <main className={commonStyles.container}>
+        {preview && (
+          <aside>
+            <Link href="/api/exit-preview">
+              <a>Sair do modo Preview</a>
+            </Link>
+          </aside>
+        )}
         <div className={styles.posts}>
           {posts.map((post, index) => (
             <Link key={post.uid ?? index} href={`/post/${post.uid ?? '404'}`}>
               <a>
                 <strong>{post.data.title}</strong>
                 <p>{post.data.subtitle}</p>
-                <time><FiCalendar size={16} /> {formatDate(post.first_publication_date)}</time>
+                <time><FiCalendar size={16} /> {post.first_publication_date}</time>
                 <span><FiUser size={16} /> {post.data.author}</span>
               </a>
             </Link>
@@ -86,17 +94,24 @@ export default function Home({ postsPagination }: HomeProps) {
   );
 }
 
-export const getStaticProps: GetStaticProps = async () => {
+export const getStaticProps: GetStaticProps = async ({
+  preview = false,
+  previewData,
+}) => {
   const prismic = getPrismicClient();
 
   const postsResponse = await prismic.query(
     [Prismic.Predicates.at('document.type', 'posts')],
-    { pageSize: 1, fetch: ['posts.title', 'posts.subtitle', 'posts.author',] }
+    {
+      pageSize: 20, fetch: ['posts.title', 'posts.subtitle', 'posts.author',],
+      ref: previewData?.ref ?? null,
+
+    }
   );
 
   const posts = postsResponse.results.map(post => ({
     uid: post.uid,
-    first_publication_date: post.first_publication_date,
+    first_publication_date: formatDate(post.first_publication_date),
     data: post.data,
   }));
 
@@ -105,7 +120,8 @@ export const getStaticProps: GetStaticProps = async () => {
       postsPagination: {
         next_page: postsResponse.next_page,
         results: posts
-      }
+      },
+      preview,
     },
   }
 };

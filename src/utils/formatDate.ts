@@ -20,3 +20,13 @@ export function formatDate(isoDate) {
 
   return formattedDate;
 }
+export function formatDateHour(isoDate){
+  const formattedDate = format(
+    new Date(isoDate),
+    "dd MMM yyyy', às 'HH:mm",
+    {
+      locale: ptBR,
+    }
+  );
+  return formattedDate;
+}
