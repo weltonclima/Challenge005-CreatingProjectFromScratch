@@ -12,6 +12,7 @@ import Header from '../../components/Header';
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
 import Comments from '../../components/Comments';
+import Link from 'next/link';
 
 interface Post {
   first_publication_date: string | null;
@@ -28,14 +29,23 @@ interface Post {
         text: string;
       }[];
     }[];
+    next_post?: {
+      uid: string | null;
+      title: string | null;
+    };
+    prev_post?: {
+      uid: string | null;
+      title: string | null;
+    };
   };
 }
 
 interface PostProps {
   post: Post;
+  preview: boolean;
 }
 
-export default function Post({ post }: PostProps) {
+export default function Post({ post, preview }: PostProps) {
   const { isFallback } = useRouter();
 
   function getReadingTime() {
@@ -100,6 +110,35 @@ export default function Post({ post }: PostProps) {
         </article>
         <Comments />
       </main>
+      <footer className={styles.footer}>
+            {post.data.prev_post?.uid ? (
+              <Link href={`/post/${post.data.prev_post.uid}`}>
+                <div className={styles.previous}>
+                  <span>{post.data.prev_post.title}</span>
+                  <a>Post anterior</a>
+                </div>
+              </Link>
+            ) : (
+              <div />
+            )}
+            {post.data.next_post?.uid ? (
+              <Link href={`/post/${post.data.next_post.uid}`}>
+                <div className={styles.next}>
+                  <span>{post.data.next_post.title}</span>
+                  <a>Próximo post</a>
+                </div>
+              </Link>
+            ) : (
+              <div />
+            )}
+          </footer>
+      {preview && (
+        <aside className={commonStyles.previewPrismic}>
+          <Link href="/api/exit-preview">
+            <a>Sair do modo Preview</a>
+          </Link>
+        </aside>
+      )}
     </>
   );
 }
@@ -119,16 +158,63 @@ export const getStaticPaths: GetStaticPaths = async () => {
   }
 };
 
-export const getStaticProps: GetStaticProps = async ({ params }) => {
-  console.log(params)
+export const getStaticProps: GetStaticProps = async ({
+  params,
+  preview = false,
+  previewData,
+}) => {
+
   const { slug } = params;
   const prismic = getPrismicClient();
   const response = await prismic.getByUID('posts', String(slug), {});
+
+  if (!response) {
+    return {
+      redirect: {
+        destination: '/',
+        permanent: false,
+      },
+    };
+  }
 
   const content = response.data.content.map(content => ({
     heading: content.heading,
     body: content.body,
   }));
+
+  const nextPost = await prismic.query(
+    [
+      Prismic.Predicates.at('document.type', 'posts'),
+      Prismic.Predicates.dateAfter(
+        'document.first_publication_date',
+        response.first_publication_date
+      ),
+    ],
+    {
+      fetch: ['post.results.uid', 'post.results.title'],
+      pageSize: 60,
+      ref: previewData?.ref ?? null,
+    }
+  );
+  const index_next_post = nextPost.results.length - 1;
+  const next_post = Boolean(nextPost.results[index_next_post]);
+
+  const prevPost = await prismic.query(
+    [
+      Prismic.Predicates.at('document.type', 'posts'),
+      Prismic.Predicates.dateBefore(
+        'document.first_publication_date',
+        response.first_publication_date
+      ),
+    ],
+    {
+      fetch: ['post.results.uid', 'post.results.title'],
+      pageSize: 60,
+      ref: previewData?.ref ?? null,
+    }
+  )
+  const index_prev_post = prevPost.results.length - 1;
+  const prev_post = Boolean(prevPost.results[index_prev_post]);
 
   const post = {
     first_publication_date: formatDate(response.first_publication_date),
@@ -136,18 +222,28 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     uid: response.uid,
     data: {
       title: response.data.title,
+      next_post: {
+        uid: next_post ? nextPost.results[index_next_post].uid : null,
+        title: next_post ? nextPost.results[index_next_post].data.title : null,
+      },
+      prev_post: {
+        uid: prev_post ? prevPost.results[index_prev_post].uid : null,
+        title: prev_post ? prevPost.results[index_prev_post].data.title : null,
+      },
       subtitle: response.data.subtitle,
+      author: response.data.author,
       banner: {
         url: response.data.banner.url,
       },
-      author: response.data.author,
       content,
     },
-  }
+  };
 
   return {
     props: {
-      post
-    }
-  }
+      post,
+      preview,
+    },
+    revalidate: 3600,
+  };
 };

@@ -123,5 +123,6 @@ export const getStaticProps: GetStaticProps = async ({
       },
       preview,
     },
+    revalidate: 3600,
   }
 };

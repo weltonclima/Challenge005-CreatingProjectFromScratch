@@ -10,16 +10,17 @@ export function getPrismicClient(req?: unknown): DefaultClient {
   return prismic;
 }
 
-export const linkResolver = (doc) => {
+export function linkResolver(doc) {
   if (doc.type === 'post') {
     return `/blog/${doc.uid}`
   }
   return '/'
 }
 
-export const hrefResolver = (doc) => {
+export function hrefResolver(doc) {
   if (doc.type === 'post') {
     return '/blog/[uid]'
   }
   return '/'
 }
+
